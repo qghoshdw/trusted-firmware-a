@@ -7,10 +7,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "chipinfo_internal.h"
 #include <drivers/qti/chipinfo/chipinfo.h>
 #include <drivers/qti/platforminfo/platforminfodefs.h>
 #include <drivers/qti/smem/smem.h>
+
+#include "chipinfo_internal.h"
+
+#define SMEM_HW_SW_BUILD_ID 0x89
 
 static struct chipinfo_ctxt chipinfo_ctxt;
 
@@ -76,16 +79,17 @@ bool chipinfo_is_part_disabled(enum chipinfo_part part, uint32_t part_idx)
 enum chipinfo_result qti_chipinfo_init(void)
 {
 	struct platforminfo_smem *smem;
-	uint32_t size;
+	size_t size;
 	uint32_t fmt;
 	uint32_t chip_id;
 	uint32_t chip_family;
 	uint32_t i;
+	int ret;
 
 	/* Access the socinfo SMEM region populated by the boot firmware. */
-	smem = (struct platforminfo_smem *)smem_get_addr(SMEM_HW_SW_BUILD_ID,
-							 &size);
-	if (smem == NULL || size < sizeof(uint32_t)) {
+	ret = qti_smem_lookup(QTI_SMEM_HOST_COMMON, SMEM_HW_SW_BUILD_ID,
+			      QTI_SMEM_FLAG_NONE, (void **)&smem, &size);
+	if (ret != 0 || smem == NULL || size < sizeof(uint32_t)) {
 		return CHIPINFO_ERROR_NOT_FOUND;
 	}
 
@@ -142,8 +146,7 @@ enum chipinfo_result qti_chipinfo_init(void)
 		/* offset <= size first, so (size - offset) below cannot underflow. */
 		if ((offset != 0U) && (num != 0U) && (offset <= size) &&
 		    (num <= (size - offset) / sizeof(uint32_t))) {
-			features = (const uint32_t *)
-				   ((uintptr_t)smem + offset);
+			features = (const uint32_t *)((uintptr_t)smem + offset);
 			for (i = 0U; i < num; i++) {
 				chipinfo_ctxt.disabled_features[i] =
 					features[i];
@@ -159,11 +162,11 @@ enum chipinfo_result qti_chipinfo_init(void)
 
 		/* offset <= size first, so (size - offset) below cannot underflow. */
 		if ((offset != 0U) && (num != 0U) && (offset <= size) &&
-		    (num <= (size - offset) /
-			     sizeof(struct platforminfo_part_info))) {
+		    (num <=
+		     (size - offset) / sizeof(struct platforminfo_part_info))) {
 			chipinfo_ctxt.part_info =
-				(const struct platforminfo_part_info *)
-				((uintptr_t)smem + offset);
+				(const struct platforminfo_part_info
+					 *)((uintptr_t)smem + offset);
 			chipinfo_ctxt.num_part_info = num;
 		}
 	}
