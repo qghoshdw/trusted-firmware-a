@@ -43,6 +43,10 @@ PROGRAMMABLE_RESET_ADDRESS		:=	1
 PLAT_XLAT_TABLES_DYNAMIC		:=	1
 $(eval $(call add_define,PLAT_XLAT_TABLES_DYNAMIC))
 
+# Enable MBOX
+QTI_MBOX						:=	1
+QTI_MBOX_QMP					:=	1
+
 #disable CTX_INCLUDE_AARCH32_REGS to support lemans gold cores
 override CTX_INCLUDE_AARCH32_REGS	:=	0
 WORKAROUND_CVE_2017_5715		:=      0
@@ -98,6 +102,7 @@ BL31_SOURCES		+=	drivers/delay_timer/generic_delay_timer.c		\
 
 include drivers/qti/smem/smem.mk
 include drivers/qti/chipinfo/chipinfo.mk
+include drivers/qti/mbox/mbox.mk
 
 # Override this on the command line to point to the qtiseclib library
 QTISECLIB_PATH ?=
@@ -123,7 +128,8 @@ BL31_SOURCES	+=	$(PLAT_PATH)/hoya/common/hoya_pm.c \
 			drivers/qti/sec_core/sec_core.c \
 			drivers/qti/sec_core/${CHIPSET}/sec_core_cfg.c \
 			drivers/qti/qtimer/qtimer.c \
-			drivers/qti/watchdog/watchdog.c
+			drivers/qti/watchdog/watchdog.c \
+			${PLAT_PATH}/common/src/qti_mbox_plat.c
 else
 $(eval $(call add_define,QTISECLIB_PATH))
 # use library provided by QTISECLIB_PATH

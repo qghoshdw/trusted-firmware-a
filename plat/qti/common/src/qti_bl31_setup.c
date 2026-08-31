@@ -21,13 +21,16 @@
 #include <drivers/qti/qtimer/qtimer.h>
 #include <drivers/qti/sec_core/sec_core.h>
 #include <drivers/qti/smem/smem.h>
+#ifdef QTI_MBOX
+#include <drivers/qti/mbox/qti_mbox.h>
+#endif /* QTI_MBOX */
+#include <platform.h>
+
 #include <drivers/qti/smmu/smmu.h>
 #include <drivers/qti/watchdog/watchdog.h>
 #include <lib/bl_aux_params/bl_aux_params.h>
 #include <lib/coreboot.h>
 #include <lib/spinlock.h>
-
-#include <platform.h>
 #include <qti_interrupt_svc.h>
 #include <qti_plat.h>
 #include <qti_uart_console.h>
@@ -57,12 +60,14 @@ void bl31_early_platform_setup(u_register_t from_bl2,
 
 	qti_console_uart_register(&g_qti_console_uart, PLAT_QTI_UART_BASE);
 	console_set_scope(&g_qti_console_uart, CONSOLE_FLAG_RUNTIME |
-			  CONSOLE_FLAG_BOOT | CONSOLE_FLAG_CRASH);
+						       CONSOLE_FLAG_BOOT |
+						       CONSOLE_FLAG_CRASH);
 	/*
 	 * Tell BL31 where the non-trusted software image
 	 * is located and the entry state information
 	 */
-	bl31_params_parse_helper(from_bl2, &bl32_image_ep_info, &bl33_image_ep_info);
+	bl31_params_parse_helper(from_bl2, &bl32_image_ep_info,
+				 &bl33_image_ep_info);
 }
 
 void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
@@ -77,14 +82,8 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
  ******************************************************************************/
 void bl31_plat_arch_setup(void)
 {
-	qti_setup_page_tables(
-			      BL31_START,
-			      BL31_END-BL31_START,
-			      BL_CODE_BASE,
-			      BL_CODE_END,
-			      BL_RO_DATA_BASE,
-			      BL_RO_DATA_END
-			     );
+	qti_setup_page_tables(BL31_START, BL31_END - BL31_START, BL_CODE_BASE,
+			      BL_CODE_END, BL_RO_DATA_BASE, BL_RO_DATA_END);
 	enable_mmu_el3(0);
 }
 
@@ -106,6 +105,12 @@ void bl31_platform_setup(void)
 	if (qti_chipinfo_init() != CHIPINFO_SUCCESS) {
 		WARN("ChipInfo initialization error\n");
 	}
+#ifdef QTI_MBOX
+	/* Initialize mailbox framework. */
+	if (qti_mbox_init() != 0)
+		WARN("%s: qti_mbox_init failed\n", __func__);
+#endif /* QTI_MBOX */
+
 	qti_smmu_init();
 	qti_interrupt_svc_init(bl32_image_ep_info.pc != 0);
 	qti_sec_core_init();
